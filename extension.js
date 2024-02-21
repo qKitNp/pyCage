@@ -18,6 +18,7 @@ async function activate(context) {
 	// console.log('Congratulations, your extension "my-first-extension" is now active!');
 	const terminal = vscode.window.createTerminal('pyCages');
 
+	const workspaceFolder = vscode.workspace.workspaceFolders[0];
 	const venvPath = vscode.Uri.joinPath(workspaceFolder.uri, '.venv');
     const venvExists = fs.existsSync(venvPath.fsPath);
 
