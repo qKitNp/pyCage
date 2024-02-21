@@ -17,9 +17,15 @@ async function activate(context) {
 	// This line of code will only be executed once when your extension is activated
 	// console.log('Congratulations, your extension "my-first-extension" is now active!');
 	const terminal = vscode.window.createTerminal('pyCages');
-	terminal.sendText(`pip install uv`);
-	terminal.sendText(`uv venv`);
-	terminal.show();
+
+	const venvPath = vscode.Uri.joinPath(workspaceFolder.uri, '.venv');
+    const venvExists = fs.existsSync(venvPath.fsPath);
+
+	if (!venvExists) {
+        terminal.sendText('pip install uv');
+        terminal.sendText('uv venv');
+        terminal.show();
+    }
 	const res = await axios.get('https://hugovk.github.io/top-pypi-packages/top-pypi-packages-30-days.json');
 	const names = res.data.rows;
 

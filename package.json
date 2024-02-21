@@ -2,11 +2,12 @@
   "name": "py-cage",
   "displayName": "pyCage",
   "publisher": "PranjalKitN",
+  "icon": "assets/python.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/qKitNp/pyCage"},
   "description": "Fastest Python package manager for Visual Studio Code powered by uv.",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "engines": {
     "vscode": "^1.86.0"
   },

@@ -36,5 +36,9 @@ It will make a virtual enviroment, since it can only be used in that.
 
 First version, probably an alpha, has been released
 
+## 0.0.2
+
+Added Icon and fixed creation of new virtual enviroment everytime the extension is activated.
+
 
 
