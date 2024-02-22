@@ -49,7 +49,7 @@ async function activate(context) {
 		// Display a message box to the user
 		vscode.window.showInformationMessage('Installing: ' + selectedLibrary);
 		if (selectedLibrary) {
-			const terminal2 = vscode.window.createTerminal('pyCage');
+			const terminal2 = vscode.window.createTerminal('pyCage Installer');
             terminal2.sendText(`uv pip install ${selectedLibrary}`);
             terminal2.show();
         }
