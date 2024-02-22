@@ -17,7 +17,7 @@ async function activate(context) {
 	// Use the console to output diagnostic information (console.log) and errors (console.error)
 	// This line of code will only be executed once when your extension is activated
 	// console.log('Congratulations, your extension "my-first-extension" is now active!');
-	const terminal = vscode.window.createTerminal('pyCages');
+	const terminal = vscode.window.createTerminal('pyCage');
 	const workspaceFolder = vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders[0] : null;
 	const venvPath = vscode.Uri.joinPath(workspaceFolder.uri, '.venv');
     const venvExists = fs.existsSync(venvPath.fsPath);
@@ -49,8 +49,9 @@ async function activate(context) {
 		// Display a message box to the user
 		vscode.window.showInformationMessage('Installing: ' + selectedLibrary);
 		if (selectedLibrary) {
-            terminal.sendText(`uv pip install ${selectedLibrary}`);
-            terminal.show();
+			const terminal2 = vscode.window.createTerminal('pyCage');
+            terminal2.sendText(`uv pip install ${selectedLibrary}`);
+            terminal2.show();
         }
 	});
 

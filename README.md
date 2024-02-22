@@ -30,7 +30,7 @@ select "pyCage: Add Python Package" in command pallete to start extension.
 Since python has well over 500,000 packages, only 8000 most popular can be installed using pyCage.
 It is for better UX and shouldn't hinder most of the tasks.
 
-It will make a virtual enviroment, since it can only be used in that.
+Make sure that you have approiate permissions in the directory when creating an virtual enviroment.
 
 ## Release Notes
 
