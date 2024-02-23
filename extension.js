@@ -22,9 +22,11 @@ async function activate(context) {
 	const venvPath = vscode.Uri.joinPath(workspaceFolder.uri, '.venv');
     const venvExists = fs.existsSync(venvPath.fsPath);
 
+	terminal.sendText('pip install uv');
+
 	if (!venvExists) {
         
-        terminal.sendText('pip install uv');
+        
         terminal.sendText('uv venv');
         terminal.show();
 		
@@ -40,7 +42,7 @@ async function activate(context) {
 	// The command has been defined in the package.json file
 	// Now provide the implementation of the command with  registerCommand
 	// The commandId parameter must match the command field in package.json
-	let disposable = vscode.commands.registerCommand('py-cage.addPackage', 
+	let pipInstaller = vscode.commands.registerCommand('py-cage.addPackageGlobal', 
 	async function () {
 		// The code you place here will be executed every time your command is executed
 		const selectedLibrary = await vscode.window.showQuickPick(names.map(pkg => pkg.project));
@@ -49,13 +51,29 @@ async function activate(context) {
 		// Display a message box to the user
 		vscode.window.showInformationMessage('Installing: ' + selectedLibrary);
 		if (selectedLibrary) {
-			const terminal2 = vscode.window.createTerminal('pyCage Installer');
-            terminal2.sendText(`uv pip install ${selectedLibrary}`);
-            terminal2.show();
+			
+            terminal.sendText(`pip install ${selectedLibrary}`);
+            terminal.show();
         }
-	});
+	},
+	);
 
-	context.subscriptions.push(disposable);
+	let uvInstaller = vscode.commands.registerCommand('py-cage.addPackageLocal',
+	async function () {
+		// The code you place here will be executed every time your command is executed
+		const selectedLibrary = await vscode.window.showQuickPick(names.map(pkg => pkg.project));
+
+
+		// Display a message box to the user
+		vscode.window.showInformationMessage('Installing: ' + selectedLibrary);
+		if (selectedLibrary) {
+			
+            terminal.sendText(`uv pip install ${selectedLibrary}`);
+            terminal.show();
+        }
+});
+
+	context.subscriptions.push(pipInstaller, uvInstaller);
 }
 
 // This method is called when your extension is deactivated

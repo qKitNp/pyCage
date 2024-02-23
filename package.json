@@ -8,7 +8,7 @@
     "url": "https://github.com/qKitNp/pyCage"
   },
   "description": "Fastest Python package manager for Visual Studio Code powered by uv by astral.sh",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "engines": {
     "vscode": "^1.86.0"
   },
@@ -20,8 +20,12 @@
   "contributes": {
     "commands": [
       {
-        "command": "py-cage.addPackage",
-        "title": "pyCage: Add Python Packages"
+        "command": "py-cage.addPackageLocal",
+        "title": "pyCage: Add Python Packages to venv. (recommended)"
+      },
+      {
+        "command": "py-cage.addPackageGlobal",
+        "title": "pyCage: Add Python Packages to global environment. (legacy) "
       }
     ]
   },
