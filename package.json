@@ -26,6 +26,14 @@
       {
         "command": "py-cage.addPackageGlobal",
         "title": "pyCage: Add Python Packages to global environment. (legacy) "
+      },
+      {
+        "command": "py-cage.debugInterpreter",
+        "title": "pyCage: Debug Python Interpreter Setup"
+      },
+      {
+        "command": "py-cage.makeRequirements",
+        "title": "pyCage: Make a requirements.txt"
       }
     ]
   },

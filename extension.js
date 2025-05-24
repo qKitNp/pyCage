@@ -88,6 +88,8 @@ async function installUv(osInfo) {
 // Global state to track venv creation
 let venvCreationInProgress = false;
 
+
+
 /**
  * Creates virtual environment if needed, with duplicate prevention
  * @param {vscode.Terminal} terminal - Terminal to use for venv creation
@@ -96,6 +98,27 @@ let venvCreationInProgress = false;
 async function createVenvIfNeeded(terminal, venvExists) {
 	if (venvExists) {
 		console.log('.venv already exists, skipping creation');
+
+		// Activate the existing virtual environment in terminal
+		const workspaceFolder = vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders[0] : null;
+		if (workspaceFolder) {
+			console.log('Activating existing virtual environment in terminal...');
+			const osInfo = getOperatingSystem();
+			let activationCommand;
+
+			if (osInfo.isWindows) {
+				activationCommand = '.venv\\Scripts\\activate';
+			} else {
+				// Linux or macOS
+				activationCommand = 'source .venv/bin/activate';
+			}
+
+			console.log(`Executing activation command: ${activationCommand}`);
+			terminal.sendText(`${activationCommand} && echo "✓ Virtual environment activated"`);
+			console.log('✓ Existing virtual environment activated in terminal');
+
+			vscode.window.showInformationMessage('🐍 Virtual environment activated!');
+		}
 		return;
 	}
 
@@ -110,21 +133,84 @@ async function createVenvIfNeeded(terminal, venvExists) {
 
 		// Double-check that .venv doesn't exist (race condition protection)
 		const workspaceFolder = vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders[0] : null;
-		if (workspaceFolder) {
-			const venvPath = vscode.Uri.joinPath(workspaceFolder.uri, '.venv');
-			if (fs.existsSync(venvPath.fsPath)) {
-				console.log('.venv was created by another process, skipping');
-				return;
-			}
+		if (!workspaceFolder) {
+			console.log('❌ No workspace folder found, cannot create virtual environment');
+			vscode.window.showErrorMessage('❌ No workspace folder found. Please open a folder to create a virtual environment.');
+			return;
+		}
+
+		const venvPath = vscode.Uri.joinPath(workspaceFolder.uri, '.venv');
+		if (fs.existsSync(venvPath.fsPath)) {
+			console.log('.venv was created by another process, skipping');
+			return;
 		}
 
 		terminal.sendText('uv venv');
 		terminal.show();
 
-		// Wait a moment for command to execute before allowing another call
-		await new Promise(resolve => setTimeout(resolve, 2000));
+		// Wait for virtual environment to be created and Python executable to be available
+		console.log('Waiting for virtual environment creation...');
 
-		console.log('Virtual environment creation completed');
+		let venvCreated = false;
+		let pythonExists = false;
+		const maxAttempts = 15; // 15 seconds total wait time
+
+		for (let attempt = 0; attempt < maxAttempts; attempt++) {
+			await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
+
+			if (workspaceFolder) {
+				const venvPath = vscode.Uri.joinPath(workspaceFolder.uri, '.venv');
+				venvCreated = fs.existsSync(venvPath.fsPath);
+
+				if (venvCreated) {
+					// Check if Python executable exists
+					const osInfo = getOperatingSystem();
+					const pythonPath = osInfo.isWindows
+						? `${venvPath.fsPath}\\Scripts\\python.exe`
+						: `${venvPath.fsPath}/bin/python`;
+					pythonExists = fs.existsSync(pythonPath);
+
+					if (pythonExists) {
+						console.log(`✓ Virtual environment ready after ${attempt + 1} seconds`);
+						break;
+					} else {
+						console.log(`Virtual environment directory exists but Python executable not ready yet (attempt ${attempt + 1}/${maxAttempts})`);
+					}
+				} else {
+					console.log(`Waiting for .venv directory to be created (attempt ${attempt + 1}/${maxAttempts})`);
+				}
+			}
+		}
+
+		if (venvCreated && pythonExists) {
+			console.log('✓ Virtual environment creation completed successfully');
+
+			// Activate the virtual environment in the terminal
+			if (workspaceFolder) {
+				console.log('Activating virtual environment in terminal...');
+				const osInfo = getOperatingSystem();
+				let activationCommand;
+
+				if (osInfo.isWindows) {
+					activationCommand = '.venv\\Scripts\\activate';
+				} else {
+					// Linux or macOS
+					activationCommand = 'source .venv/bin/activate';
+				}
+
+				console.log(`Executing activation command: ${activationCommand}`);
+				terminal.sendText(`${activationCommand} && echo "✓ Virtual environment activated"`);
+				console.log('✓ Virtual environment activated in terminal');
+
+				vscode.window.showInformationMessage('🐍 Virtual environment created and activated!');
+			}
+		} else if (venvCreated && !pythonExists) {
+			console.log('⚠️ Virtual environment directory created but Python executable not found');
+			vscode.window.showWarningMessage('⚠️ Virtual environment created but Python executable not found. Please check if uv venv completed successfully.');
+		} else {
+			console.log('❌ Virtual environment creation may have failed - directory not found after waiting');
+			vscode.window.showErrorMessage('❌ Virtual environment creation failed. Please check the terminal for errors.');
+		}
 
 	} catch (error) {
 		console.error('Error creating venv:', error);
@@ -208,6 +294,8 @@ async function setupUvAsync(osInfo) {
 		return false;
 	}
 }
+
+
 
 /**
  * Gets or creates the pyCage terminal
@@ -306,8 +394,8 @@ async function activate(context) {
 
 			// Check if user selected a package or cancelled
 			if (selectedLibrary) {
-				// Display a message box to the user
-				vscode.window.showInformationMessage('Installing: ' + selectedLibrary);
+				// Install package using terminal
+				vscode.window.showInformationMessage(`Installing ${selectedLibrary} with pip...`);
 				const currentTerminal = getOrCreateTerminal();
 				currentTerminal.sendText(`pip install ${selectedLibrary}`);
 				currentTerminal.show();
@@ -351,7 +439,8 @@ async function activate(context) {
 						}
 					);
 					if (selectedLibrary) {
-						vscode.window.showInformationMessage('Installing with pip: ' + selectedLibrary);
+						// Install package using terminal with pip fallback
+						vscode.window.showInformationMessage(`Installing ${selectedLibrary} with pip (fallback)...`);
 						const currentTerminal = getOrCreateTerminal();
 						currentTerminal.sendText(`pip install ${selectedLibrary}`);
 						currentTerminal.show();
@@ -377,8 +466,8 @@ async function activate(context) {
 
 			// Check if user selected a package or cancelled
 			if (selectedLibrary) {
-				// Display a message box to the user
-				vscode.window.showInformationMessage('Installing: ' + selectedLibrary);
+				// Install package using terminal with uv
+				vscode.window.showInformationMessage(`Installing ${selectedLibrary} with uv...`);
 				const currentTerminal = getOrCreateTerminal();
 				currentTerminal.sendText(`uv pip install ${selectedLibrary}`);
 				currentTerminal.show();
@@ -387,7 +476,104 @@ async function activate(context) {
 			}
 		});
 
-	context.subscriptions.push(pipInstaller, uvInstaller);
+	// Debug command to check Python interpreter status
+	let debugCommand = vscode.commands.registerCommand('py-cage.debugInterpreter',
+		async function () {
+			const workspaceFolder = vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders[0] : null;
+			if (!workspaceFolder) {
+				vscode.window.showInformationMessage('❌ No workspace folder found');
+				return;
+			}
+
+			const venvPath = vscode.Uri.joinPath(workspaceFolder.uri, '.venv');
+			const osInfo = getOperatingSystem();
+			const pythonPath = osInfo.isWindows
+				? `${venvPath.fsPath}\\Scripts\\python.exe`
+				: `${venvPath.fsPath}/bin/python`;
+
+			// Current configuration
+			const config = vscode.workspace.getConfiguration('python');
+			const currentInterpreter = config.get('defaultInterpreterPath');
+			const currentPythonPath = config.get('pythonPath');
+
+			const debugInfo = [
+				`📁 Workspace: ${workspaceFolder.uri.fsPath}`,
+				`🐍 OS: ${osInfo.readable} (${osInfo.platform})`,
+				`📂 .venv exists: ${fs.existsSync(venvPath.fsPath)}`,
+				`🐍 Python executable exists: ${fs.existsSync(pythonPath)}`,
+				`📍 Expected Python path: ${pythonPath}`,
+				`⚙️ Current defaultInterpreterPath: ${currentInterpreter || 'not set'}`,
+				`⚙️ Current pythonPath: ${currentPythonPath || 'not set'}`,
+			];
+
+			if (fs.existsSync(venvPath.fsPath)) {
+				try {
+					const venvContents = fs.readdirSync(venvPath.fsPath);
+					debugInfo.push(`📂 .venv contents: ${venvContents.join(', ')}`);
+
+					if (osInfo.isWindows) {
+						const scriptsPath = `${venvPath.fsPath}\\Scripts`;
+						if (fs.existsSync(scriptsPath)) {
+							const scriptsContents = fs.readdirSync(scriptsPath);
+							debugInfo.push(`📂 Scripts contents: ${scriptsContents.join(', ')}`);
+						}
+					} else {
+						const binPath = `${venvPath.fsPath}/bin`;
+						if (fs.existsSync(binPath)) {
+							const binContents = fs.readdirSync(binPath);
+							debugInfo.push(`📂 bin contents: ${binContents.join(', ')}`);
+						}
+					}
+				} catch (error) {
+					debugInfo.push(`❌ Error reading .venv contents: ${error.message}`);
+				}
+			}
+
+			console.log('=== PYTHON INTERPRETER DEBUG INFO ===');
+			debugInfo.forEach(info => console.log(info));
+
+			// Show status if .venv exists
+			if (fs.existsSync(venvPath.fsPath) && fs.existsSync(pythonPath)) {
+				debugInfo.push('✅ Virtual environment is ready to use');
+			}
+
+			vscode.window.showInformationMessage('Debug info logged to console. Check VS Code Developer Tools → Console tab.');
+		});
+
+	// Requirements.txt generator command
+	let requirementsCommand = vscode.commands.registerCommand('py-cage.makeRequirements',
+		async function () {
+			const workspaceFolder = vscode.workspace.workspaceFolders ? vscode.workspace.workspaceFolders[0] : null;
+			if (!workspaceFolder) {
+				vscode.window.showErrorMessage('❌ No workspace folder found. Please open a folder to generate requirements.txt');
+				return;
+			}
+
+			// Check if uv is available
+			const uvAvailable = await checkUvInstalled();
+			if (!uvAvailable) {
+				vscode.window.showErrorMessage('❌ uv is not installed. Please install uv first using the other pyCage commands.');
+				return;
+			}
+
+			try {
+				console.log('Generating requirements.txt...');
+				vscode.window.showInformationMessage('📝 Generating requirements.txt...');
+
+				const terminal = getOrCreateTerminal();
+				terminal.sendText('uv pip freeze > requirements.txt && echo "✓ requirements.txt generated"');
+				terminal.show();
+
+				console.log('✓ requirements.txt generation command sent to terminal');
+				vscode.window.showInformationMessage('✅ requirements.txt generated! Check your workspace root.');
+
+			} catch (error) {
+				console.error('❌ Error generating requirements.txt:', error);
+				vscode.window.showErrorMessage(`❌ Failed to generate requirements.txt: ${error.message}`);
+			}
+		});
+
+	context.subscriptions.push(pipInstaller, uvInstaller, debugCommand, requirementsCommand);
 }
 
 // This method is called when your extension is deactivated
