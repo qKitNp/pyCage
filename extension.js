@@ -32,10 +32,36 @@ function getOperatingSystem() {
  */
 async function checkUvInstalled() {
 	return new Promise((resolve) => {
+		// First try the simple command
 		exec('uv --version', (error, stdout, stderr) => {
 			if (error) {
-				console.log('uv not found, will install it');
-				resolve(false);
+				console.log('uv not found in PATH, checking common installation locations...');
+
+				// Check common installation paths for macOS/Linux
+				const commonPaths = [
+					os.homedir() + '/.cargo/bin/uv',
+					os.homedir() + '/.local/bin/uv',
+					'/usr/local/bin/uv',
+					'/opt/homebrew/bin/uv'  // For Apple Silicon Homebrew
+				];
+
+				let foundPath = null;
+				let checkedPaths = 0;
+
+				commonPaths.forEach(path => {
+					exec(`"${path}" --version`, (pathError, pathStdout, pathStderr) => {
+						checkedPaths++;
+
+						if (!pathError && !foundPath) {
+							foundPath = path;
+							console.log(`uv found at: ${path}, version: ${pathStdout.trim()}`);
+							resolve(true);
+						} else if (checkedPaths === commonPaths.length && !foundPath) {
+							console.log('uv not found in common locations, will install it');
+							resolve(false);
+						}
+					});
+				});
 			} else {
 				console.log(`uv is already installed: ${stdout.trim()}`);
 				resolve(true);
@@ -87,8 +113,6 @@ async function installUv(osInfo) {
 
 // Global state to track venv creation
 let venvCreationInProgress = false;
-
-
 
 /**
  * Creates virtual environment if needed, with duplicate prevention
@@ -145,7 +169,10 @@ async function createVenvIfNeeded(terminal, venvExists) {
 			return;
 		}
 
-		terminal.sendText('uv venv');
+		// Get the correct uv command path
+		const uvCommand = await getUvCommand();
+		setupTerminalEnvironment(terminal, uvCommand);
+		terminal.sendText(`${uvCommand} venv`);
 		terminal.show();
 
 		// Wait for virtual environment to be created and Python executable to be available
@@ -217,7 +244,9 @@ async function createVenvIfNeeded(terminal, venvExists) {
 		// Try with a fresh terminal if the current one has issues
 		try {
 			const freshTerminal = getOrCreateTerminal();
-			freshTerminal.sendText('uv venv');
+			const uvCommand = await getUvCommand();
+			setupTerminalEnvironment(freshTerminal, uvCommand);
+			freshTerminal.sendText(`${uvCommand} venv`);
 			freshTerminal.show();
 		} catch (fallbackError) {
 			console.error('Failed to create venv with fallback terminal:', fallbackError);
@@ -295,7 +324,45 @@ async function setupUvAsync(osInfo) {
 	}
 }
 
+/**
+ * Gets the correct uv command, checking common installation paths
+ * @returns {Promise<string>} - Promise that resolves to the uv command path
+ */
+async function getUvCommand() {
+	return new Promise((resolve) => {
+		// First try the simple command
+		exec('uv --version', (error, stdout, stderr) => {
+			if (!error) {
+				resolve('uv');
+				return;
+			}
 
+			// Check common installation paths for macOS/Linux
+			const commonPaths = [
+				os.homedir() + '/.cargo/bin/uv',
+				os.homedir() + '/.local/bin/uv',
+				'/usr/local/bin/uv',
+				'/opt/homebrew/bin/uv'  // For Apple Silicon Homebrew
+			];
+
+			let foundPath = null;
+			let checkedPaths = 0;
+
+			commonPaths.forEach(path => {
+				exec(`"${path}" --version`, (pathError, pathStdout, pathStderr) => {
+					checkedPaths++;
+
+					if (!pathError && !foundPath) {
+						foundPath = path;
+						resolve(`"${path}"`);
+					} else if (checkedPaths === commonPaths.length && !foundPath) {
+						resolve('uv'); // Fallback to simple command
+					}
+				});
+			});
+		});
+	});
+}
 
 /**
  * Gets or creates the pyCage terminal
@@ -324,6 +391,25 @@ function getOrCreateTerminal() {
 		console.error('Error in getOrCreateTerminal:', error);
 		// Fallback: try to create a terminal with a unique name
 		return vscode.window.createTerminal(`pyCage-${Date.now()}`);
+	}
+}
+
+/**
+ * Sets up the terminal environment with correct PATH for uv
+ * @param {vscode.Terminal} terminal - Terminal to setup
+ * @param {string} uvPath - Full path to uv executable
+ */
+function setupTerminalEnvironment(terminal, uvPath) {
+	if (uvPath !== 'uv' && uvPath.includes('/')) {
+		// Extract directory from full path
+		const uvDir = uvPath.replace(/"/g, '').replace('/uv', '');
+		const osInfo = getOperatingSystem();
+
+		if (osInfo.isMacOS || osInfo.isLinux) {
+			// Add the uv directory to PATH for this terminal session
+			terminal.sendText(`export PATH="${uvDir}:$PATH"`);
+			console.log(`Added ${uvDir} to terminal PATH`);
+		}
 	}
 }
 
@@ -469,7 +555,9 @@ async function activate(context) {
 				// Install package using terminal with uv
 				vscode.window.showInformationMessage(`Installing ${selectedLibrary} with uv...`);
 				const currentTerminal = getOrCreateTerminal();
-				currentTerminal.sendText(`uv pip install ${selectedLibrary}`);
+				const uvCommand = await getUvCommand();
+				setupTerminalEnvironment(currentTerminal, uvCommand);
+				currentTerminal.sendText(`${uvCommand} pip install ${selectedLibrary}`);
 				currentTerminal.show();
 			} else {
 				console.log('Package selection cancelled by user');
@@ -561,7 +649,9 @@ async function activate(context) {
 				vscode.window.showInformationMessage('📝 Generating requirements.txt...');
 
 				const terminal = getOrCreateTerminal();
-				terminal.sendText('uv pip freeze > requirements.txt && echo "✓ requirements.txt generated"');
+				const uvCommand = await getUvCommand();
+				setupTerminalEnvironment(terminal, uvCommand);
+				terminal.sendText(`${uvCommand} pip freeze > requirements.txt && echo "✓ requirements.txt generated"`);
 				terminal.show();
 
 				console.log('✓ requirements.txt generation command sent to terminal');
