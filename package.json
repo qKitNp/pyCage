@@ -53,6 +53,7 @@
   },
   "dependencies": {
     "axios": "^1.6.7",
-    "fs": "^0.0.1-security"
+    "fs": "^0.0.1-security",
+    "vsce": "^2.15.0"
   }
 }
