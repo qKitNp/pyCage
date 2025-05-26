@@ -5,6 +5,43 @@ const { checkUvInstalled, getUvCommand } = require('../managers/uvManager');
 const { getOrCreateTerminal, setupTerminalEnvironment } = require('../managers/terminalManager');
 const { setupUvAsync } = require('../managers/packageManager');
 
+async function showPopularQuickPick(names, placeHolder) {
+    return new Promise(resolve => {
+        const qp = vscode.window.createQuickPick();
+        qp.placeholder = placeHolder;
+        qp.matchOnDescription = true;
+        qp.matchOnDetail = true;
+
+        const updateItems = (value) => {
+            const filter = (value || '').toLowerCase();
+            const matches = names.filter(pkg =>
+                pkg.project && pkg.project.toLowerCase().includes(filter)
+            );
+            matches.sort((a, b) => (b.download_count || 0) - (a.download_count || 0));
+            qp.items = matches.slice(0, 200).map(pkg => ({
+                label: pkg.project,
+                description: pkg.download_count ? `Downloads: ${pkg.download_count.toLocaleString()}` : undefined
+            }));
+        };
+
+        updateItems('');
+        qp.onDidChangeValue(updateItems);
+        qp.onDidAccept(() => {
+            const sel = qp.selectedItems[0];
+            qp.hide();
+            resolve(sel);
+        });
+        qp.onDidHide(() => {
+            resolve(undefined);
+        });
+        qp.show();
+    });
+}
+
+function getProjectNameFromQuickPick(item) {
+    return item && item.label;
+}
+
 /**
  * Registers the pip global package installer command
  * @param {vscode.ExtensionContext} context - VS Code extension context
@@ -13,32 +50,21 @@ const { setupUvAsync } = require('../managers/packageManager');
 function registerPipInstaller(context, names) {
     let pipInstaller = vscode.commands.registerCommand('py-cage.addPackageGlobal',
         async function () {
-            // Check if we have package names available
             if (!names || names.length === 0) {
                 vscode.window.showErrorMessage('Package list not available. Please check your internet connection and try again.');
                 return;
             }
-
-            // The code you place here will be executed every time your command is executed
-            const selectedLibrary = await vscode.window.showQuickPick(
-                names.map(pkg => pkg.project),
-                {
-                    placeHolder: 'Search and select a Python package to install globally with pip...',
-                    matchOnDescription: true,
-                    matchOnDetail: true,
-                    ignoreFocusOut: false
-                }
-            );
-
-            // Check if user selected a package or cancelled
+            const pick = await showPopularQuickPick(names, 'Search and select a Python package (sorted by popularity)...');
+            if (!pick) {
+                console.log('Package selection cancelled by user');
+                return;
+            }
+            const selectedLibrary = getProjectNameFromQuickPick(pick);
             if (selectedLibrary) {
-                // Install package using terminal
                 vscode.window.showInformationMessage(`Installing ${selectedLibrary} with pip...`);
                 const currentTerminal = getOrCreateTerminal();
                 currentTerminal.sendText(`pip install ${selectedLibrary}`);
                 currentTerminal.show();
-            } else {
-                console.log('Package selection cancelled by user');
             }
         }
     );
@@ -55,13 +81,10 @@ function registerPipInstaller(context, names) {
 function registerUvInstaller(context, names, osInfo) {
     let uvInstaller = vscode.commands.registerCommand('py-cage.addPackageLocal',
         async function () {
-            // Check if we have package names available
             if (!names || names.length === 0) {
                 vscode.window.showErrorMessage('Package list not available. Please check your internet connection and try again.');
                 return;
             }
-
-            // Check if uv is available
             const uvAvailable = await checkUvInstalled();
             if (!uvAvailable) {
                 const choice = await vscode.window.showWarningMessage(
@@ -70,59 +93,41 @@ function registerUvInstaller(context, names, osInfo) {
                     'Use pip instead',
                     'Cancel'
                 );
-
                 if (choice === 'Install uv') {
                     vscode.window.showInformationMessage('Installing uv... Please wait and try again after installation completes.');
                     await setupUvAsync(osInfo);
                     return;
                 } else if (choice === 'Use pip instead') {
-                    // Fall back to pip installation
-                    const selectedLibrary = await vscode.window.showQuickPick(
-                        names.map(pkg => pkg.project),
-                        {
-                            placeHolder: 'Search and select a Python package to install with pip (fallback)...',
-                            matchOnDescription: true,
-                            matchOnDetail: true,
-                            ignoreFocusOut: false
-                        }
-                    );
+                    const pick = await showPopularQuickPick(names, 'Search and select a Python package (sorted by popularity)...');
+                    if (!pick) {
+                        console.log('Package selection cancelled by user (pip fallback)');
+                        return;
+                    }
+                    const selectedLibrary = getProjectNameFromQuickPick(pick);
                     if (selectedLibrary) {
-                        // Install package using terminal with pip fallback
                         vscode.window.showInformationMessage(`Installing ${selectedLibrary} with pip (fallback)...`);
                         const currentTerminal = getOrCreateTerminal();
                         currentTerminal.sendText(`pip install ${selectedLibrary}`);
                         currentTerminal.show();
-                    } else {
-                        console.log('Package selection cancelled by user (pip fallback)');
                     }
                     return;
                 } else {
                     return; // Cancel
                 }
             }
-
-            // The code you place here will be executed every time your command is executed
-            const selectedLibrary = await vscode.window.showQuickPick(
-                names.map(pkg => pkg.project),
-                {
-                    placeHolder: 'Search and select a Python package to install in virtual environment with uv...',
-                    matchOnDescription: true,
-                    matchOnDetail: true,
-                    ignoreFocusOut: false
-                }
-            );
-
-            // Check if user selected a package or cancelled
+            const pick = await showPopularQuickPick(names, 'Search and select a Python package (sorted by popularity)...');
+            if (!pick) {
+                console.log('Package selection cancelled by user');
+                return;
+            }
+            const selectedLibrary = getProjectNameFromQuickPick(pick);
             if (selectedLibrary) {
-                // Install package using terminal with uv
                 vscode.window.showInformationMessage(`Installing ${selectedLibrary} with uv...`);
                 const currentTerminal = getOrCreateTerminal();
                 const uvCommand = await getUvCommand();
                 setupTerminalEnvironment(currentTerminal, uvCommand);
                 currentTerminal.sendText(`${uvCommand} pip install ${selectedLibrary}`);
                 currentTerminal.show();
-            } else {
-                console.log('Package selection cancelled by user');
             }
         });
 
