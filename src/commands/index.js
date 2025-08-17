@@ -13,7 +13,8 @@ const {
 const { 
     registerDebugCommand, 
     registerRequirementsCommand, 
-    registerInstallFromRequirementsCommand 
+    registerInstallFromRequirementsCommand,
+    registerTransferToUvCommand
 } = require('./projectCommands');
 
 /**
@@ -35,6 +36,7 @@ function registerAllCommands(context, names, osInfo) {
     registerDebugCommand(context);
     registerRequirementsCommand(context);
     registerInstallFromRequirementsCommand(context);
+    registerTransferToUvCommand(context);
 }
 
 module.exports = {
@@ -48,5 +50,6 @@ module.exports = {
     registerUvAddPackageCommand,
     registerDebugCommand,
     registerRequirementsCommand,
-    registerInstallFromRequirementsCommand
+    registerInstallFromRequirementsCommand,
+    registerTransferToUvCommand
 };

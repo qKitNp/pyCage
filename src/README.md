@@ -47,6 +47,7 @@ src/
 - `registerDebugCommand()` - Python interpreter debugging
 - `registerRequirementsCommand()` - Requirements.txt generation
 - `registerInstallFromRequirementsCommand()` - Install from requirements.txt
+- `registerTransferToUvCommand()` - **NEW**: Transfer existing projects to UV
 
 ### Utilities Layer (`utils/`)
 
@@ -117,6 +118,28 @@ To add a new command:
 - **User Experience**: Progressive disclosure and helpful confirmation dialogs
 - **Performance**: Efficient package search with smart ranking algorithms
 - **Cross-Platform**: Full Windows, macOS, and Linux support
+
+## New Feature: Project Transfer to UV
+
+### Transfer Existing Project to UV
+
+**Command**: `pyCage: Transfer Existing Project to UV`
+
+Automatically migrates existing Python projects to UV with a seamless 4-step process:
+
+1. **📋 Export Current Packages**: Uses `pip freeze` to capture all installed packages
+2. **🏗️ Initialize UV Project**: Runs `uv init` to create UV project structure
+3. **📦 Add All Packages**: Uses `uv add -r` to add packages to UV project
+4. **🧹 Cleanup**: Removes temporary files
+
+**Benefits**:
+
+- **Zero Data Loss**: Preserves all existing package versions
+- **Automated Process**: No manual package migration needed
+- **UV Native**: Creates proper `pyproject.toml` and lock files
+- **Clean Migration**: Temporary files are automatically cleaned up
+
+**Perfect for**: Converting existing pip/venv projects to modern UV workflow
 
 ## Refactoring Benefits
 

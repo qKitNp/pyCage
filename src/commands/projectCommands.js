@@ -123,8 +123,101 @@ function registerInstallFromRequirementsCommand(context) {
     context.subscriptions.push(installFromRequirementsCommand);
 }
 
+/**
+ * Registers the transfer existing project to UV command
+ * @param {vscode.ExtensionContext} context - VS Code extension context
+ */
+function registerTransferToUvCommand(context) {
+    let transferToUvCommand = vscode.commands.registerCommand('py-cage.transferToUv',
+        async function () {
+            const workspaceFolder = CommandBase.checkWorkspaceFolder('❌ No workspace folder found. Please open a folder to transfer to UV.');
+            if (!workspaceFolder) return;
+
+            if (!(await CommandBase.checkUvAvailable())) return;
+
+            // Check if pyproject.toml already exists
+            if (CommandBase.fileExistsInWorkspace(workspaceFolder, 'pyproject.toml')) {
+                const shouldContinue = await CommandBase.showConfirmation(
+                    'pyproject.toml already exists. This appears to be a UV project already. Continue with transfer anyway?'
+                );
+                if (!shouldContinue) return;
+            }
+
+            // Show confirmation dialog explaining the process
+            const confirmed = await vscode.window.showWarningMessage(
+                '🔄 This will:\n' +
+                '1. Export current packages with pip freeze\n' +
+                '2. Initialize UV project (uv init)\n' +
+                '3. Add all packages to UV project\n' +
+                '4. Clean up temporary files\n\n' +
+                'Continue with transfer?',
+                'Transfer to UV',
+                'Cancel'
+            );
+
+            if (confirmed !== 'Transfer to UV') return;
+
+            try {
+                console.log('Starting transfer to UV...');
+                vscode.window.showInformationMessage('🚀 Starting transfer to UV project...');
+
+                const terminal = CommandBase.getOrCreateTerminal ? CommandBase.getOrCreateTerminal() : require('../managers/terminalManager').getOrCreateTerminal();
+                const uvCommand = await require('../managers/uvManager').getUvCommand();
+                require('../managers/terminalManager').setupTerminalEnvironment(terminal, uvCommand);
+
+                // Step 1: Export current packages to temporary requirements file
+                vscode.window.showInformationMessage('📋 Step 1/4: Exporting current packages...');
+                terminal.sendText('pip freeze > requirements-temp.txt && echo "✓ Current packages exported to requirements-temp.txt"');
+                
+                // Wait a moment for the freeze command to complete
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Step 2: Initialize UV project
+                vscode.window.showInformationMessage('🏗️ Step 2/4: Initializing UV project...');
+                terminal.sendText(`${uvCommand} init && echo "✓ UV project initialized"`);
+                
+                // Wait for init to complete
+                await new Promise(resolve => setTimeout(resolve, 3000));
+
+                // Step 3: Add packages from requirements file
+                vscode.window.showInformationMessage('📦 Step 3/4: Adding packages to UV project...');
+                terminal.sendText(`${uvCommand} add -r requirements-temp.txt && echo "✓ Packages added to UV project"`);
+                
+                // Wait for packages to be added
+                await new Promise(resolve => setTimeout(resolve, 2000));
+
+                // Step 4: Clean up temporary file
+                vscode.window.showInformationMessage('🧹 Step 4/4: Cleaning up...');
+                const osInfo = require('../utils/system').getOperatingSystem();
+                const deleteCommand = osInfo.isWindows ? 'del requirements-temp.txt' : 'rm requirements-temp.txt';
+                terminal.sendText(`${deleteCommand} && echo "✓ Transfer to UV completed successfully!"`);
+
+                terminal.show();
+
+                // Show success message
+                setTimeout(() => {
+                    vscode.window.showInformationMessage(
+                        '✅ Project successfully transferred to UV!\n\n' +
+                        '📁 Created: pyproject.toml, .python-version\n' +
+                        '📦 Added: All existing packages\n' +
+                        '🔧 Ready: Use "pyCage: Add Package with UV" for new packages'
+                    );
+                }, 8000);
+
+                console.log('✓ Transfer to UV completed');
+
+            } catch (error) {
+                console.error('❌ Error transferring to UV:', error);
+                vscode.window.showErrorMessage(`❌ Failed to transfer to UV: ${error.message}`);
+            }
+        });
+
+    context.subscriptions.push(transferToUvCommand);
+}
+
 module.exports = {
     registerDebugCommand,
     registerRequirementsCommand,
-    registerInstallFromRequirementsCommand
+    registerInstallFromRequirementsCommand,
+    registerTransferToUvCommand
 };
