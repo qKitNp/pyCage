@@ -6,12 +6,7 @@ const axios = require('axios');
 // Import our modular functions
 const { getOperatingSystem } = require('./src/utils/system');
 const { setupUvAsync } = require('./src/managers/packageManager');
-const {
-	registerPipInstaller,
-	registerUvInstaller,
-	registerDebugCommand,
-	registerRequirementsCommand
-} = require('./src/commands/commandHandlers');
+const { registerAllCommands } = require('./src/commands/index');
 
 // This method is called when your extension is activated
 // Your extension is activated the very first time the command is executed
@@ -37,12 +32,9 @@ async function activate(context) {
 		names = []; // Empty array as fallback
 	}
 
-	// Register commands immediately (regardless of uv status)
+	// Register all commands immediately (regardless of uv status)
 	// This ensures commands are always available even if uv installation fails
-	registerPipInstaller(context, names);
-	registerUvInstaller(context, names, osInfo);
-	registerDebugCommand(context);
-	registerRequirementsCommand(context);
+	registerAllCommands(context, names, osInfo);
 
 	// Setup uv asynchronously (non-blocking)
 	setupUvAsync(osInfo).then(success => {

@@ -34,6 +34,18 @@
       {
         "command": "py-cage.makeRequirements",
         "title": "pyCage: Make a requirements.txt"
+      },
+      {
+        "command": "py-cage.installFromRequirements",
+        "title": "pyCage: Install from requirements.txt"
+      },
+      {
+        "command": "py-cage.uvInit",
+        "title": "pyCage: Initialize UV Project (uv init)"
+      },
+      {
+        "command": "py-cage.uvAddPackage",
+        "title": "pyCage: Add Package with UV (uv add)"
       }
     ]
   },

@@ -1,75 +1,138 @@
-# pyCage Extension - Modular Structure
+# pyCage Source Code Structure
 
-This document explains the modular organization of the pyCage VS Code extension for better readability and maintainability.
+This directory contains the source code for the pyCage VS Code extension, organized in a modular architecture for better maintainability and readability.
 
 ## Directory Structure
 
 ```
 src/
-├── utils/
-│   └── system.js              # Operating system detection utilities
+├── commands/
+│   ├── index.js               # Central command registry
+│   ├── pipCommands.js         # Pip-related commands
+│   ├── uvCommands.js          # UV package manager commands
+│   └── projectCommands.js     # Project management commands
 ├── managers/
-│   ├── uvManager.js           # UV package manager installation and management
-│   ├── terminalManager.js     # Terminal creation and environment setup
-│   ├── venvManager.js         # Virtual environment creation and management
-│   └── packageManager.js      # Package management orchestration
-└── commands/
-    └── commandHandlers.js     # VS Code command implementations
+│   ├── packageManager.js      # Package installation management
+│   ├── terminalManager.js     # Terminal operations
+│   ├── uvManager.js           # UV installation and management
+│   └── venvManager.js         # Virtual environment management
+└── utils/
+    ├── commandBase.js         # Common command patterns and validation
+    ├── packageSearch.js       # Package search and selection utilities
+    └── system.js              # Operating system detection utilities
 ```
 
-## Module Descriptions
+## Modular Architecture
 
-### `utils/system.js`
-- **Purpose**: System-related utility functions
-- **Functions**:
-  - `getOperatingSystem()`: Detects OS and returns platform information
+### Commands Layer (`commands/`)
 
-### `managers/uvManager.js`
-- **Purpose**: UV package manager installation and management
-- **Functions**:
-  - `checkUvInstalled()`: Checks if UV is already installed
-  - `installUv()`: Installs UV using the appropriate method for the OS
-  - `getUvCommand()`: Gets the correct UV command path
+**index.js** - Central command registry
 
-### `managers/terminalManager.js`
-- **Purpose**: Terminal creation and environment setup
-- **Functions**:
-  - `getOrCreateTerminal()`: Gets or creates the pyCage terminal
-  - `setupTerminalEnvironment()`: Sets up terminal environment with correct PATH for UV
+- Imports and exports all command registration functions
+- Provides `registerAllCommands()` for easy setup
+- Maintains clean separation between extension entry point and commands
 
-### `managers/venvManager.js`
-- **Purpose**: Virtual environment creation and management
-- **Functions**:
-  - `createVenvIfNeeded()`: Creates virtual environment if needed with duplicate prevention
+**pipCommands.js** - Pip package manager commands
 
-### `managers/packageManager.js`
-- **Purpose**: High-level package management orchestration
-- **Functions**:
-  - `setupUvAsync()`: Sets up UV installation asynchronously without blocking command registration
+- `registerPipInstaller()` - Global pip package installation
 
-### `commands/commandHandlers.js`
-- **Purpose**: VS Code command implementations
-- **Functions**:
-  - `registerPipInstaller()`: Registers the pip global package installer command
-  - `registerUvInstaller()`: Registers the UV local package installer command
-  - `registerDebugCommand()`: Registers the debug interpreter command
-  - `registerRequirementsCommand()`: Registers the requirements.txt generator command
+**uvCommands.js** - UV package manager commands
 
-## Main Extension File
+- `registerUvInstaller()` - UV pip-compatible package installation
+- `registerUvInitCommand()` - UV project initialization (`uv init`)
+- `registerUvAddPackageCommand()` - Native UV package addition (`uv add`)
 
-The main `extension.js` file now only contains:
-- Import statements for all modular functions
-- The `activate()` function that orchestrates the extension startup
-- The `deactivate()` function (currently empty)
+**projectCommands.js** - Project management commands
 
-## Benefits of This Structure
+- `registerDebugCommand()` - Python interpreter debugging
+- `registerRequirementsCommand()` - Requirements.txt generation
+- `registerInstallFromRequirementsCommand()` - Install from requirements.txt
 
-1. **Better Readability**: Each file has a single responsibility and focused functionality
-2. **Easier Maintenance**: Bug fixes and feature additions are localized to specific modules
-3. **Improved Testing**: Individual modules can be tested in isolation
-4. **Reduced Coupling**: Clear separation of concerns between different functional areas
-5. **Reusability**: Functions can be easily reused across different parts of the extension
+### Utilities Layer (`utils/`)
 
-## Usage
+**commandBase.js** - Common command patterns
 
-All modules are imported and used in the main `extension.js` file. The modular structure is transparent to end users - the extension functionality remains exactly the same.
+- `CommandBase` class with static methods for common validations
+- Workspace folder checks, UV availability checks
+- Unified terminal command execution
+- Common UI patterns (confirmations, dependency type selection)
+
+**packageSearch.js** - Package search and selection
+
+- Advanced package search with ranking algorithms
+- Weighted scoring (download count + keyword similarity)
+- Interactive quick pick interface with real-time filtering
+- Package name extraction utilities
+
+**system.js** - Operating system utilities
+
+- Cross-platform OS detection
+- Platform-specific path handling
+
+### Managers Layer (`managers/`)
+
+**uvManager.js** - UV package manager integration
+
+- UV installation detection and verification
+- Cross-platform UV command path resolution
+- UV installation procedures
+
+**terminalManager.js** - Terminal operations
+
+- VS Code integrated terminal management
+- Terminal creation, reuse, and environment setup
+- Cross-platform terminal command execution
+
+**packageManager.js** - Package installation management
+
+- High-level package manager setup and initialization
+- Asynchronous UV setup procedures
+
+**venvManager.js** - Virtual environment management
+
+- Virtual environment creation and detection
+- Python interpreter path resolution
+
+## Design Principles
+
+1. **Separation of Concerns**: Each file has a single, well-defined responsibility
+2. **Reusability**: Common patterns extracted into utility classes/functions
+3. **Maintainability**: Clear module boundaries make the code easier to modify
+4. **Testability**: Modular structure allows for easier unit testing
+5. **Consistency**: Standardized patterns across all command implementations
+
+## Adding New Commands
+
+To add a new command:
+
+1. Determine the appropriate command file (pip, uv, or project)
+2. Use `CommandBase` utilities for common validation patterns
+3. Follow existing naming conventions and error handling patterns
+4. Export the registration function from the appropriate command file
+5. Add the import/export to `commands/index.js`
+
+## Code Quality Features
+
+- **Error Handling**: Consistent error messaging and user feedback
+- **User Experience**: Progressive disclosure and helpful confirmation dialogs
+- **Performance**: Efficient package search with smart ranking algorithms
+- **Cross-Platform**: Full Windows, macOS, and Linux support
+
+## Refactoring Benefits
+
+The modular refactoring provides:
+
+1. **📖 Better Readability**: Each file focuses on a specific domain
+2. **🔧 Easier Maintenance**: Changes are localized to specific modules
+3. **🧪 Improved Testing**: Individual modules can be tested in isolation
+4. **🔗 Reduced Coupling**: Clear interfaces between modules
+5. **♻️ Reusability**: Common patterns are extracted and shared
+6. **📈 Scalability**: New features can be added without affecting existing code
+
+## Migration Summary
+
+- **Before**: Single 532-line `commandHandlers.js` file
+- **After**: 7 focused files with clear responsibilities
+- **Reduced complexity**: Each file is now under 150 lines
+- **Improved organization**: Logical grouping by functionality
+- **Enhanced maintainability**: Clear separation of concerns
